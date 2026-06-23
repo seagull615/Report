@@ -1,0 +1,26 @@
+s = serialport('COM4', 9600);
+configureTerminator(s, 'LF');
+
+figure;
+t_data   = [];
+raw_data = [];
+
+while true
+    line = readline(s);
+    vals = str2double(split(line, ','));
+    if length(vals) < 2, continue; end
+
+    t   = vals(1) / 1000;    % ms → 초
+    raw = vals(2);            % 0 ~ 1023
+
+    t_data   = [t_data,   t];
+    raw_data = [raw_data, raw];
+
+    plot(t_data, raw_data, 'b-');
+    xlabel('시간 (s)');
+    ylabel('ADC (0~1023)');
+    title('A0 노이즈 포함 신호');
+    ylim([-50, 1073]);
+    grid on;
+    drawnow;
+end
