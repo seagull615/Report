@@ -1,0 +1,42 @@
+unsigned int blinkInterval =1000; // ms
+unsigned int k = 0; // 
+
+unsigned long lastBlink = 0;
+bool ledState = false;
+
+void setup() {
+  pinMode(8, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  unsigned long now = millis();
+  // Serial.println(now);
+  if (now - lastBlink >= blinkInterval) {
+    lastBlink = now;
+
+    ledState = !ledState;
+    digitalWrite(8, ledState);
+    //Serial.println(ledState);
+    //Serial.println(k);
+    //Serial.println(blinkInterval);
+    blinkInterval=blinkInterval-20;
+    if (blinkInterval < 60) {
+      blinkInterval=blinkInterval+20;
+      k=k+1;
+      if (k>200){
+        blinkInterval = 1000;
+        lastBlink = now;
+       
+        k=0;
+      }
+    }
+
+  }
+  // A0 읽어서 시리얼 전송
+  int raw = analogRead(A0);
+  Serial.print(now);
+  Serial.print(',');
+  Serial.println(raw);
+  delay(10);  // 100Hz
+}
