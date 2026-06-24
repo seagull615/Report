@@ -1,0 +1,53 @@
+unsigned int blinkInterval = 1000; // ms
+unsigned int k = 0;
+
+unsigned long lastBlink = 0;
+bool ledState = false;
+
+// 백색노이즈 설정
+const int NOISE_PIN = 9;        // PWM 핀 (3,5,6,9,10,11 중 선택)
+unsigned long lastNoise = 0;
+const int NOISE_INTERVAL = 1;   // 노이즈 갱신 간격 (ms) — 작을수록 고주파 성분 증가
+
+void setup() {
+  pinMode(8, OUTPUT);
+  pinMode(NOISE_PIN, OUTPUT);
+  Serial.begin(9600);
+  randomSeed(analogRead(A1));   // A1 플로팅 핀으로 시드 초기화 (A0는 이미 사용 중)
+}
+
+void loop() {
+  unsigned long now = millis();
+
+  // ── 기존 LED 블링크 ──────────────────────────────
+  if (now - lastBlink >= blinkInterval) {
+    lastBlink = now;
+    ledState = !ledState;
+    digitalWrite(8, ledState);
+
+    blinkInterval -= 20;
+    if (blinkInterval < 60) {
+      blinkInterval += 20;
+      k++;
+      if (k > 120) {
+        blinkInterval = 1000;
+        lastBlink = now;
+        k = 0;
+      }
+    }
+  }
+
+  // ── 백색노이즈 생성 ──────────────────────────────
+  if (now - lastNoise >= NOISE_INTERVAL) {
+    lastNoise = now;
+    int noiseVal = random(0, 50);   // 0~255 균등 분포 → 백색노이즈
+    analogWrite(NOISE_PIN, noiseVal);
+  }
+
+  // ── A0 읽어서 시리얼 전송 ────────────────────────
+  int raw = analogRead(A0);
+  Serial.print(now);
+  Serial.print(',');
+  Serial.println(raw);
+  delay(10); // 100Hz
+}
