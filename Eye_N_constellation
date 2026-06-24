@@ -1,0 +1,40 @@
+clear; clc; close all;
+
+%% Parameters
+Nbits = 20;      % Number of bits
+sps = 20;          % Samples per symbol
+
+%% Random bit generation
+bits = randi([0 1], Nbits, 1);
+
+%% ASK (without carrier)
+tx = repelem(bits, sps);
+
+%% Add noise
+rx = awgn(tx, 15, 'measured');
+
+%% Time-domain signal
+figure;
+plot(rx);
+xlabel('Sample');
+ylabel('Amplitude');
+title('Received ASK Signal');
+
+%% Eye diagram
+eyediagram(rx, 2*sps);
+
+title('Eye Diagram');
+%% Symbol-sampled constellation
+
+% Sample at the center of each symbol
+sample_idx = sps/2 : sps : length(rx);
+sym_samples = rx(sample_idx);
+
+% Constellation plot
+figure;
+plot(sym_samples, zeros(size(sym_samples)), 'o');
+xlabel('In-phase');
+ylabel('Quadrature');
+title('Symbol-Sampled Constellation');
+grid on;
+ylim([-0.5 0.5]);
