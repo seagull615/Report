@@ -1,0 +1,49 @@
+s = serialport('COM4', 9600);
+configureTerminator(s, 'LF');
+
+t_data   = [];
+raw_data = [];
+
+disp('데이터 수집 중... (0~10초)');
+
+while true
+    line = readline(s);
+    vals = str2double(split(line, ','));
+    if length(vals) < 2, continue; end
+
+    t   = vals(1) / 1000;
+    raw = vals(2);
+
+    t_data   = [t_data,   t];
+    raw_data = [raw_data, raw];
+
+    if t >= 10
+        break;
+    end
+end
+
+disp('수집 완료. 플롯 중...');
+
+figure;
+plot(t_data, raw_data, 'b-');
+xlabel('시간 (s)');
+ylabel('ADC (0~1023)');
+title('A0 노이즈 포함 신호');
+ylim([-50, 1073]);
+grid on;
+
+clear s;
+%% 과표본화 성상도
+
+% -1, +1 로 정규화
+normalized = (raw_data / 511.5) - 1; %1023의 절반
+
+figure;
+scatter(normalized, zeros(size(normalized)), 10, 'b');
+xlabel('I');
+ylabel('Q');
+title('2값 성상도 (BPSK)');
+xlim([-1.5, 1.5]);
+ylim([-1, 1]);
+grid on;
+axis equal;
