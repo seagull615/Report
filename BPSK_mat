@@ -1,0 +1,45 @@
+s = serialport('COM4', 9600);
+configureTerminator(s, 'LF');
+t_data   = [];
+raw_data = [];
+disp('데이터 수집 중... (0~10초)');
+while true
+    line = readline(s);
+    vals = str2double(split(line, ','));
+    if length(vals) < 2, continue; end
+    t   = vals(1) / 1000;
+    raw = vals(2);
+    t_data   = [t_data,   t];
+    raw_data = [raw_data, raw];
+    if t >= 10, break; end
+end
+disp('수집 완료. 플롯 중...');
+
+% ── 복조 ──────────────────────────────────────
+% 캐리어와 같은 사각파 생성 (주기 50ms = 20Hz)
+carrier = square(2*pi*20*t_data);  % -1 / +1
+
+% 곱하기 (믹싱)
+mixed = (raw_data - 512) .* carrier;  % DC 제거 후 곱
+
+% 저역통과필터 (0.05초 = BIT_MS 기준으로 스무딩)  Bit duration in MilliSeconds 
+win = max(1, round(0.05 / mean(diff(t_data)))); % 윈도우 샘플 수
+demod = movmean(mixed, win);
+
+% ── 플롯 ──────────────────────────────────────
+figure;
+subplot(3,1,1);
+plot(t_data, raw_data, 'b-');
+title('원신호 (A0)'); ylabel('ADC'); grid on;
+
+subplot(3,1,2);
+plot(t_data, mixed, 'r-');
+title('믹싱 후'); ylabel('진폭'); grid on;
+
+subplot(3,1,3);
+plot(t_data, demod, 'g-');
+title('복조 (LPF 후)'); ylabel('진폭');
+xlabel('시간 (s)'); grid on;
+yline(0, 'k--');
+
+clear s;
