@@ -1,0 +1,224 @@
+%% =========================================================
+%  BPSK 송수신 완전 시뮬레이션
+%  - SNR vs BER (이론값 비교)
+%  - 성상도 (Constellation Diagram)
+%  - 눈 다이어그램 (Eye Diagram)
+%  - 시간 영역 파형 (송신/수신/복조)
+%% =========================================================
+clear; clc; close all;
+
+%% ===== [1] 파라미터 설정 =====
+N_bits      = 10000;        % 총 비트 수
+fc          = 10;           % 반송파 주파수 (Hz) - 시뮬레이션용
+fs          = 200;          % 샘플링 주파수 (Hz)
+Tb          = 1;            % 비트 주기 (s)
+Ns          = fs * Tb;      % 비트당 샘플 수
+SNR_dB_vec  = -4:2:12;     % SNR 범위 (dB)
+SNR_demo    = 10;           % 파형/성상도 시각화용 SNR (dB)
+
+t_bit = (0:Ns-1) / fs;     % 한 비트의 시간 벡터
+carrier = cos(2*pi*fc*t_bit);  % 기준 반송파
+
+%% ===== [2] SNR vs BER 계산 =====
+BER_sim  = zeros(1, length(SNR_dB_vec));
+BER_theory = zeros(1, length(SNR_dB_vec));
+
+for idx = 1:length(SNR_dB_vec)
+    snr_db  = SNR_dB_vec(idx);
+    snr_lin = 10^(snr_db/10);
+
+    % 비트 생성 및 BPSK 변조
+    bits   = randi([0 1], 1, N_bits);
+    symbols = 2*bits - 1;             % 0→-1, 1→+1
+
+    % AWGN 채널
+    noise_power = 1 / (2 * snr_lin);
+    noise   = sqrt(noise_power) * randn(1, N_bits);
+    rx_sym  = symbols + noise;
+
+    % 판정 및 BER 계산
+    rx_bits = rx_sym >= 0;
+    BER_sim(idx) = sum(bits ~= rx_bits) / N_bits;
+
+    % 이론 BER: Q(sqrt(2*Eb/N0))
+    BER_theory(idx) = qfunc(sqrt(2 * snr_lin));
+end
+
+%% ===== [3] 파형 생성 (시각화용, 20비트만) =====
+N_demo   = 20;
+bits_d   = randi([0 1], 1, N_demo);
+symbols_d = 2*bits_d - 1;
+
+% 송신 신호 생성
+tx_signal = [];
+for k = 1:N_demo
+    tx_signal = [tx_signal, symbols_d(k) * carrier];
+end
+t_total = (0:length(tx_signal)-1) / fs;
+
+% 잡음 추가
+snr_lin_d   = 10^(SNR_demo/10);
+noise_power_d = 1 / (2 * snr_lin_d);
+noise_d      = sqrt(noise_power_d) * randn(1, length(tx_signal));
+rx_signal    = tx_signal + noise_d;
+
+% 코히런트 복조 (Integrate & Dump)
+rx_bits_d = zeros(1, N_demo);
+decision_val = zeros(1, N_demo);
+for k = 1:N_demo
+    seg = rx_signal((k-1)*Ns+1 : k*Ns);
+    corr_val = sum(seg .* carrier) / Ns;
+    decision_val(k) = corr_val;
+    rx_bits_d(k) = corr_val >= 0;
+end
+
+%% ===== [4] 성상도용 데이터 (많은 비트) =====
+N_const = 2000;
+bits_c  = randi([0 1], 1, N_const);
+sym_c   = 2*bits_c - 1;
+noise_c = sqrt(noise_power_d) * randn(1, N_const);
+rx_c    = sym_c + noise_c;
+
+% I/Q 성분 (BPSK는 Q=0이므로 소량 잡음 추가)
+I_rx = rx_c;
+Q_rx = sqrt(noise_power_d) * randn(1, N_const) * 0.5;
+
+%% ===== [5] 눈 다이어그램 데이터 =====
+% 연속 수신 신호에서 2비트 구간씩 겹쳐서 그림
+eye_len  = 2 * Ns;   % 2비트 구간
+N_traces = 100;       % 트레이스 개수
+
+bits_eye = randi([0 1], 1, N_traces*4);
+sym_eye  = 2*bits_eye - 1;
+sig_eye  = [];
+for k = 1:length(sym_eye)
+    sig_eye = [sig_eye, sym_eye(k)*carrier];
+end
+noise_eye = sqrt(noise_power_d) * randn(1, length(sig_eye));
+rx_eye    = sig_eye + noise_eye;
+t_eye     = (0:eye_len-1)/fs;
+
+%% ===== [6] 그래프 출력 =====
+figure('Name','BPSK 완전 시뮬레이션 결과','Color','white','Position',[50 50 1400 900]);
+
+%--- [6-1] SNR vs BER ---%
+subplot(3,3,[1,2]);
+semilogy(SNR_dB_vec, BER_theory, 'b-o', 'LineWidth', 2, 'MarkerSize', 6, 'DisplayName','이론값');
+hold on;
+semilogy(SNR_dB_vec, max(BER_sim, 1e-6), 'r--s', 'LineWidth', 2, 'MarkerSize', 6, 'DisplayName','시뮬레이션');
+grid on;
+xlabel('SNR (dB)', 'FontSize', 12);
+ylabel('BER', 'FontSize', 12);
+title('SNR vs BER (이론값 vs 시뮬레이션)', 'FontSize', 13, 'FontWeight','bold');
+legend('Location','southwest', 'FontSize', 11);
+ylim([1e-6, 1]);
+xlim([SNR_dB_vec(1), SNR_dB_vec(end)]);
+
+%--- [6-2] 성상도 ---%
+subplot(3,3,3);
+idx0 = bits_c == 0;
+idx1 = bits_c == 1;
+scatter(I_rx(idx0), Q_rx(idx0), 8, [0.2 0.6 1], 'filled', 'DisplayName','비트 0');
+hold on;
+scatter(I_rx(idx1), Q_rx(idx1), 8, [1 0.3 0.3], 'filled', 'DisplayName','비트 1');
+plot([-1,1],[0,0],'k^','MarkerSize',12,'MarkerFaceColor','k');
+grid on;
+xlabel('동위상 (I)', 'FontSize', 11);
+ylabel('직교위상 (Q)', 'FontSize', 11);
+title(sprintf('성상도 (SNR = %d dB)', SNR_demo), 'FontSize', 13, 'FontWeight','bold');
+legend('FontSize',10);
+axis equal;
+xlim([-2.5 2.5]); ylim([-2 2]);
+
+%--- [6-3] 송신 신호 파형 ---%
+subplot(3,3,4);
+plot(t_total, tx_signal, 'b', 'LineWidth', 1.2);
+hold on;
+for k = 1:N_demo
+    xline(k*Tb, '--', 'Color', [0.5 0.5 0.5], 'LineWidth', 0.8);
+end
+xlabel('시간 (s)', 'FontSize', 11);
+ylabel('진폭', 'FontSize', 11);
+title('송신 신호 (BPSK Modulated)', 'FontSize', 13, 'FontWeight','bold');
+grid on; ylim([-1.5 1.5]);
+xlim([0 10]);
+
+%--- [6-4] 수신 신호 (잡음 포함) ---%
+subplot(3,3,5);
+plot(t_total, rx_signal, 'Color', [0.8 0.2 0.2], 'LineWidth', 0.8);
+hold on;
+for k = 1:N_demo
+    xline(k*Tb, '--', 'Color', [0.5 0.5 0.5], 'LineWidth', 0.8);
+end
+xlabel('시간 (s)', 'FontSize', 11);
+ylabel('진폭', 'FontSize', 11);
+title(sprintf('수신 신호 (AWGN, SNR=%ddB)', SNR_demo), 'FontSize', 13, 'FontWeight','bold');
+grid on;
+xlim([0 10]);
+
+%--- [6-5] 복조 후 판정 값 ---%
+subplot(3,3,6);
+stem(1:N_demo, decision_val, 'filled', 'Color', [0 0.7 0.3], 'LineWidth', 1.5, 'MarkerSize', 6);
+hold on;
+yline(0, 'r--', '판정 임계값', 'LineWidth', 1.5, 'FontSize', 10);
+xlabel('비트 인덱스', 'FontSize', 11);
+ylabel('상관값', 'FontSize', 11);
+title('복조 후 판정 값', 'FontSize', 13, 'FontWeight','bold');
+grid on;
+
+% 오류 비트 표시
+for k = 1:N_demo
+    if bits_d(k) ~= rx_bits_d(k)
+        plot(k, decision_val(k), 'rx', 'MarkerSize', 14, 'LineWidth', 3);
+    end
+end
+
+%--- [6-6] 송/수신 비트 비교 ---%
+subplot(3,3,7);
+stairs(0:N_demo-1, bits_d, 'b', 'LineWidth', 2.5);
+hold on;
+stairs(0:N_demo-1, rx_bits_d - 1.5, 'r', 'LineWidth', 2.5);
+ylim([-2 2]);
+yticks([-1, 0.5]);
+yticklabels({'수신 비트', '송신 비트'});
+xlabel('비트 인덱스', 'FontSize', 11);
+title('송신 vs 수신 비트 비교', 'FontSize', 13, 'FontWeight','bold');
+grid on;
+
+% 오류 표시
+for k = 1:N_demo
+    if bits_d(k) ~= rx_bits_d(k)
+        xregion(k-1, k, 'FaceColor', [1 0.6 0.6], 'FaceAlpha', 0.4);
+    end
+end
+
+%--- [6-7] 눈 다이어그램 ---%
+subplot(3,3,[8,9]);
+hold on;
+for k = 1:N_traces
+    start_idx = (k-1)*2*Ns + 1;
+    if start_idx + eye_len - 1 <= length(rx_eye)
+        trace = rx_eye(start_idx : start_idx + eye_len - 1);
+        plot(t_eye, trace, 'Color', [0.2 0.6 1 0.25], 'LineWidth', 0.8);
+    end
+end
+xline(Tb, 'r--', '최적 샘플링', 'LineWidth', 2, 'FontSize', 10);
+xlabel('시간 (s)', 'FontSize', 11);
+ylabel('진폭', 'FontSize', 11);
+title(sprintf('눈 다이어그램 (SNR = %d dB)', SNR_demo), 'FontSize', 13, 'FontWeight','bold');
+grid on;
+xlim([0 2*Tb]);
+
+%% ===== [7] BER 결과 요약 출력 =====
+fprintf('\n==============================\n');
+fprintf('  BPSK BER 시뮬레이션 결과\n');
+fprintf('==============================\n');
+fprintf('%-10s %-15s %-15s\n', 'SNR(dB)', '이론 BER', '시뮬 BER');
+fprintf('--------------------------------------\n');
+for i = 1:length(SNR_dB_vec)
+    fprintf('%-10d %-15.2e %-15.2e\n', SNR_dB_vec(i), BER_theory(i), BER_sim(i));
+end
+fprintf('==============================\n');
+fprintf('총 비트 수: %d, 시각화 SNR: %d dB\n', N_bits, SNR_demo);
+
+sgtitle('BPSK 완전 송수신 시뮬레이션', 'FontSize', 16, 'FontWeight', 'bold', 'Color', [0.1 0.1 0.5]);
