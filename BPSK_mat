@@ -15,7 +15,7 @@ while true
 end
 disp('수집 완료. 플롯 중...');
 
-% ── 복조 ──────────────────────────────────────
+%% ── 복조 ──────────────────────────────────────
 % 캐리어와 같은 사각파 생성 (주기 50ms = 20Hz)
 carrier = square(2*pi*20*t_data);  % -1 / +1
 
@@ -42,4 +42,22 @@ title('복조 (LPF 후)'); ylabel('진폭');
 xlabel('시간 (s)'); grid on;
 yline(0, 'k--');
 
+%%
+% 판별변수 추출
+bit_len = 50;
+n_bits  = floor(length(demod) / bit_len);
+dv = zeros(1, n_bits);
+
+margin = round(bit_len * 0.3)  % 앞뒤 25% 버림
+for k = 1:n_bits
+    seg = demod((k-1)*bit_len+1+margin : k*bit_len-margin);
+    dv(k) = mean(seg);
+end
+
+% 성상도
+figure;
+scatter(dv, zeros(1,n_bits), 50, 'b', 'filled');
+xline(0,'k--');
+grid on;
+title('성상도'); xlabel('I'); ylabel('Q');
 clear s;
