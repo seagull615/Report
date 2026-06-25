@@ -1,0 +1,36 @@
+const int BIT_MS = 500;
+const int CARRIER_HALF = 25;
+
+unsigned long bitStart = 0;
+unsigned long carrierStart = 0;
+bool bitState = false;
+
+void setup() {
+  pinMode(8, OUTPUT);
+  Serial.begin(9600);
+  bitStart = carrierStart = millis();
+}
+
+void loop() {
+  unsigned long now = millis();
+
+  // 0.5초마다 위상 반전
+  if (now - bitStart >= BIT_MS) {
+    bitStart = now;
+    bitState = !bitState;
+  }
+
+  // 사각파 캐리어
+  unsigned long phase = now - carrierStart;
+  bool carrier = (phase / CARRIER_HALF) % 2;
+
+  if (bitState) carrier = !carrier;
+
+  digitalWrite(8, carrier);
+
+  int raw = analogRead(A0);
+  Serial.print(now);
+  Serial.print(',');
+  Serial.println(raw);
+  delay(5);  // 200Hz
+}
