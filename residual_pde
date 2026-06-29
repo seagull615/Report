@@ -1,0 +1,89 @@
+clear; clc; close all;
+
+%% Time axis
+t = linspace(0,2,200);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Candidate function (Wrong)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+u_wrong = 1 - t;
+
+% Derivative
+du_wrong = -ones(size(t));
+
+% PDE Residual
+R_wrong = du_wrong + u_wrong;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% True Solution
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+u_true = exp(-t);
+
+% Derivative
+du_true = -exp(-t);
+
+% PDE Residual
+R_true = du_true + u_true;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Plot
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+figure('Position',[100 100 900 700])
+
+%-----------------------------
+subplot(2,2,1)
+plot(t,u_wrong,'r','LineWidth',2)
+hold on
+plot(t,u_true,'b--','LineWidth',2)
+grid on
+xlabel('t')
+ylabel('u(t)')
+title('Function')
+legend('Wrong','True')
+
+%-----------------------------
+subplot(2,2,2)
+plot(t,du_wrong,'r','LineWidth',2)
+hold on
+plot(t,du_true,'b--','LineWidth',2)
+grid on
+xlabel('t')
+ylabel('du/dt')
+title('Derivative')
+legend('Wrong','True')
+
+%-----------------------------
+subplot(2,2,3)
+plot(t,R_wrong,'r','LineWidth',2)
+hold on
+yline(0,'k--')
+grid on
+xlabel('t')
+ylabel('Residual')
+title('Wrong Residual')
+
+%-----------------------------
+subplot(2,2,4)
+plot(t,R_true,'b','LineWidth',2)
+hold on
+yline(0,'k--')
+grid on
+xlabel('t')
+ylabel('Residual')
+title('True Residual')
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Numerical Loss
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Loss_wrong = mean(R_wrong.^2);
+Loss_true  = mean(R_true.^2);
+
+fprintf('Wrong Residual Loss = %.4f\n',Loss_wrong);
+fprintf('True Residual Loss  = %.4f\n',Loss_true);
