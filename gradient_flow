@@ -1,0 +1,144 @@
+clear; clc; close all;
+
+%%=========================
+% Loss Function : L = x'Ax
+%==========================
+
+A = [3 1;
+     1 2];
+
+L = @(x,y) 3*x.^2 + 2*x.*y + 2*y.^2;
+
+%%=========================
+% Surface
+%==========================
+
+[xg,yg] = meshgrid(-3:0.05:3);
+zg = L(xg,yg);
+
+%%=========================
+% Gradient Descent
+%==========================
+
+eta = 0.1;          % Learning rate
+N = 20;             % Number of iterations
+
+x = [2;1];          % Initial point
+
+path = zeros(2,N+1);
+path(:,1)=x;
+
+loss = zeros(1,N+1);
+loss(1)=L(x(1),x(2));
+
+for k=1:N
+
+    % Gradient
+    grad = 2*A*x;
+
+    % Update
+    x = x - eta*grad;
+
+    path(:,k+1)=x;
+
+    loss(k+1)=L(x(1),x(2));
+
+end
+
+%%=========================
+% Figure
+%==========================
+
+figure('Position',[100 100 1200 500])
+
+%%-------------------------
+% 3D Surface
+%%-------------------------
+
+subplot(1,2,1)
+
+surf(xg,yg,zg,...
+    'EdgeColor','none',...
+    'FaceAlpha',0.85)
+
+hold on
+grid on
+
+plot3(path(1,:),...
+      path(2,:),...
+      loss,...
+      'r.-',...
+      'LineWidth',2,...
+      'MarkerSize',20)
+
+plot3(path(1,1),...
+      path(2,1),...
+      loss(1),...
+      'go',...
+      'MarkerSize',10,...
+      'LineWidth',2)
+
+plot3(path(1,end),...
+      path(2,end),...
+      loss(end),...
+      'ko',...
+      'MarkerSize',10,...
+      'LineWidth',2)
+
+xlabel('x')
+ylabel('y')
+zlabel('Loss')
+
+title('Gradient Descent on Loss Surface')
+
+view(45,35)
+
+%%-------------------------
+% Contour
+%%-------------------------
+
+subplot(1,2,2)
+
+contour(xg,yg,zg,25,...
+    'LineWidth',1)
+
+hold on
+grid on
+axis equal
+
+plot(path(1,:),...
+     path(2,:),...
+     'r.-',...
+     'LineWidth',2,...
+     'MarkerSize',20)
+
+plot(path(1,1),...
+     path(2,1),...
+     'go',...
+     'MarkerSize',10,...
+     'LineWidth',2)
+
+plot(path(1,end),...
+     path(2,end),...
+     'ko',...
+     'MarkerSize',10,...
+     'LineWidth',2)
+
+xlabel('x')
+ylabel('y')
+
+title('Contour View')
+
+%%=========================
+% Print
+%==========================
+
+disp('Iteration      x          y         Loss')
+
+for k=1:N+1
+    fprintf('%3d      %8.4f   %8.4f   %10.6f\n',...
+        k-1,...
+        path(1,k),...
+        path(2,k),...
+        loss(k));
+end
