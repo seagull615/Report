@@ -1,0 +1,25 @@
+%% 1. 이미지 불러오기 및 이진수 변환
+img = imread('cameraman.tif');
+[rows, cols] = size(img);
+binStr = dec2bin(img(:), 8);        % 각 픽셀 -> 8비트 문자열
+binMat = double(binStr) - '0';      % 문자 '0'/'1' -> 숫자 0/1 행렬로 변환 (N x 8)
+
+%% 2. BPSK 오류 시뮬레이션 (비트 반전)
+BER = 0.05;   % Bit Error Rate (예: 5% 확률로 비트 반전) - 값을 바꿔가며 실험해보세요
+
+errorMask = rand(size(binMat)) < BER;   % BER 확률로 true(반전 대상) 생성
+corruptedMat = xor(binMat, errorMask);  % 0<->1 반전 (XOR로 비트 뒤집기)
+
+%% 3. 다시 이미지로 복원
+corruptedBinStr = char(corruptedMat + '0');   % 숫자 -> 문자 '0'/'1' 로 재변환
+corruptedPixels = uint8(bin2dec(corruptedBinStr));
+corruptedImg = reshape(corruptedPixels, rows, cols);
+
+%% 4. 원본 vs 오류 발생 이미지 비교
+figure;
+subplot(1,2,1); imshow(img); title('원본');
+subplot(1,2,2); imshow(corruptedImg); title(['BER = ', num2str(BER), ' 적용 후']);
+
+%% 5. 오류율 계산
+bitErrorRate_actual = sum(errorMask(:)) / numel(errorMask);
+fprintf('실제 발생한 비트 오류율: %.4f\n', bitErrorRate_actual);
