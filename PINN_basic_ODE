@@ -1,0 +1,135 @@
+clear; clc; close all;
+
+%% ================================
+% PINN for du/dt = -u
+% u(0)=1
+% Hidden neurons = 3
+%% ================================
+
+%% Training points
+t = linspace(0,1,20)';
+
+%% Parameters
+theta = randn(10,1)*0.5;
+% theta =
+% [w1 w2 w3 b1 b2 b3 v1 v2 v3 c]
+
+eta = 0.05;      % learning rate
+eps = 1e-5;      % numerical derivative
+epoch = 500;
+
+loss_history = zeros(epoch,1);
+
+%% ================================
+% Gradient Descent
+%% ================================
+
+for k = 1:epoch
+
+    % Current loss
+    L = Loss(theta,t);
+    loss_history(k)=L;
+
+    % Numerical gradient
+    grad = zeros(size(theta));
+
+    for i=1:length(theta)
+
+        theta_plus = theta;
+        theta_minus = theta;
+
+        theta_plus(i)=theta_plus(i)+eps;
+        theta_minus(i)=theta_minus(i)-eps;
+
+        L1 = Loss(theta_plus,t);
+        L2 = Loss(theta_minus,t);
+
+        grad(i)=(L1-L2)/(2*eps);
+
+    end
+
+    % Gradient Descent
+    theta = theta - eta*grad;
+
+    if mod(k,50)==0
+        fprintf('Epoch %4d   Loss = %.6f\n',k,L);
+    end
+
+end
+
+%% ================================
+% Prediction
+%% ================================
+
+tt = linspace(0,1,200)';
+
+u_pred = Net(theta,tt);
+u_exact = exp(-tt);
+
+%% Solution
+
+figure
+plot(tt,u_exact,'k','LineWidth',2)
+hold on
+plot(tt,u_pred,'r--','LineWidth',2)
+legend('Exact','PINN')
+xlabel('t')
+ylabel('u')
+grid on
+
+%% Loss history
+
+figure
+plot(loss_history,'LineWidth',2)
+xlabel('Epoch')
+ylabel('Loss')
+grid on
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function L = Loss(theta,t)
+
+u = Net(theta,t);
+du = dNet(theta,t);
+
+Residual = du + u;
+
+Loss_PDE = mean(Residual.^2);
+
+u0 = Net(theta,0);
+
+Loss_IC = (u0-1)^2;
+
+L = Loss_PDE + Loss_IC;
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function u = Net(theta,t)
+
+w = theta(1:3);
+b = theta(4:6);
+v = theta(7:9);
+c = theta(10);
+
+Z = t*w' + ones(length(t),1)*b';
+
+H = tanh(Z);
+
+u = H*v + c;
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function du = dNet(theta,t)
+
+w = theta(1:3);
+b = theta(4:6);
+v = theta(7:9);
+
+Z = t*w' + ones(length(t),1)*b';
+
+Hprime = 1 - tanh(Z).^2;
+
+du = Hprime*(v.*w);
+
+end
