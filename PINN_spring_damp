@@ -1,0 +1,165 @@
+clear; clc; close all;
+
+%% ================================
+% PINN for m*x'' + c*x' + k*x = 0
+% x(0)=1, x'(0)=0
+% Hidden neurons = 5
+%% ================================
+
+%% Physical parameters
+m = 1;
+c = 1;
+k = 1;
+
+x0 = 1;   % initial position
+v0 = 0;   % initial velocity
+
+%% Training points
+t = linspace(0,10,50)';
+
+%% Parameters
+% theta = [w(1:5) b(1:5) v(1:5) c_out]
+theta = randn(16,1)*0.5;
+
+eta = 0.05;      % learning rate
+eps_fd = 1e-5;   % numerical derivative step
+epoch = 2000;
+
+loss_history = zeros(epoch,1);
+
+%% ================================
+% Gradient Descent
+%% ================================
+
+for iter = 1:epoch
+
+    % Current loss
+    L = Loss(theta,t,m,c,k,x0,v0);
+    loss_history(iter) = L;
+
+    % Numerical gradient
+    grad = zeros(size(theta));
+
+    for i = 1:length(theta)
+
+        theta_plus  = theta;
+        theta_minus = theta;
+
+        theta_plus(i)  = theta_plus(i)  + eps_fd;
+        theta_minus(i) = theta_minus(i) - eps_fd;
+
+        L1 = Loss(theta_plus,t,m,c,k,x0,v0);
+        L2 = Loss(theta_minus,t,m,c,k,x0,v0);
+
+        grad(i) = (L1-L2)/(2*eps_fd);
+
+    end
+
+    % Gradient Descent
+    theta = theta - eta*grad;
+
+    if mod(iter,100)==0
+        fprintf('Epoch %4d   Loss = %.6f\n',iter,L);
+    end
+
+end
+
+%% ================================
+% Prediction
+%% ================================
+
+tt = linspace(0,10,300)';
+
+x_pred = Net(theta,tt);
+
+% Analytic solution for m=c=k=1, x0=1, v0=0
+% char. eq: s^2+s+1=0 -> underdamped
+wn = sqrt(k/m);
+zeta = c/(2*sqrt(k*m));
+wd = wn*sqrt(1-zeta^2);
+x_exact = exp(-zeta*wn*tt).*( x0*cos(wd*tt) + ((v0+zeta*wn*x0)/wd)*sin(wd*tt) );
+
+%% Solution
+
+figure
+plot(tt,x_exact,'k','LineWidth',2)
+hold on
+plot(tt,x_pred,'r--','LineWidth',2)
+legend('Exact','PINN')
+xlabel('t')
+ylabel('x')
+grid on
+
+%% Loss history
+
+figure
+plot(loss_history,'LineWidth',2)
+xlabel('Epoch')
+ylabel('Loss')
+set(gca,'YScale','log')
+grid on
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function L = Loss(theta,t,m,c,k,x0,v0)
+
+x   = Net(theta,t);
+dx  = dNet(theta,t);
+d2x = d2Net(theta,t);
+
+Residual = m*d2x + c*dx + k*x;
+Loss_PDE = mean(Residual.^2);
+
+x_0  = Net(theta,0);
+dx_0 = dNet(theta,0);
+
+Loss_IC = (x_0-x0)^2 + (dx_0-v0)^2;
+
+L = Loss_PDE + Loss_IC;
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function x = Net(theta,t)
+
+w = theta(1:5);
+b = theta(6:10);
+v = theta(11:15);
+c_out = theta(16);
+
+Z = t*w' + ones(length(t),1)*b';
+
+H = tanh(Z);
+
+x = H*v + c_out;
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function dx = dNet(theta,t)
+
+w = theta(1:5);
+b = theta(6:10);
+v = theta(11:15);
+
+Z = t*w' + ones(length(t),1)*b';
+
+Hprime = 1 - tanh(Z).^2;
+
+dx = Hprime*(v.*w);
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function d2x = d2Net(theta,t)
+
+w = theta(1:5);
+b = theta(6:10);
+v = theta(11:15);
+
+Z = t*w' + ones(length(t),1)*b';
+
+H2prime = -2*tanh(Z).*(1-tanh(Z).^2);
+
+d2x = H2prime*(v.*(w.^2));
+
+end
