@@ -1,0 +1,76 @@
+clear; clc;
+
+digitDatasetPath = fullfile(matlabroot,'toolbox','nnet','nndemos', ...
+    'nndatasets','DigitDataset');
+
+imds = imageDatastore(digitDatasetPath, ...
+    'IncludeSubfolders',true, ...
+    'LabelSource','foldernames');
+
+[train,test] = splitEachLabel(imds,0.8,'randomized');
+
+layers = [
+    imageInputLayer([28 28 1])
+    fullyConnectedLayer(10)
+    softmaxLayer
+    classificationLayer];
+
+net = trainNetwork(train,layers,trainingOptions('sgdm'));
+YPred = classify(net,test);
+accuracy = mean(YPred == test.Labels)
+
+%%
+%%=========================
+% 내장 테스트 이미지 예측
+%==========================
+
+% 테스트 이미지 번호 (원하는 번호로 변경)
+idx = randi(2000,1) % 1~2000
+
+% 이미지 읽기
+img = readimage(test,idx);
+
+% 실제 정답
+trueLabel = test.Labels(idx);
+
+% 예측 및 각 숫자의 확률
+[predLabel,score] = classify(net,img);
+
+% 결과 출력
+figure
+imshow(img)
+title(sprintf('예측 : %s    실제 : %s', ...
+    char(predLabel), char(trueLabel)))
+
+% 확률 출력
+disp('----------------------------')
+disp(['실제 숫자 : ' char(trueLabel)])
+disp(['예측 숫자 : ' char(predLabel)])
+disp('')
+
+disp('각 숫자의 확률')
+
+for k = 1:10
+    fprintf('%d : %.2f %%\n',k-1,score(k)*100);
+end
+%
+%% 오답 하나 랜덤으로 보기
+
+YPred = classify(net,test);
+
+wrongIdx = find(YPred ~= test.Labels);
+
+fprintf("오답 개수 : %d\n",length(wrongIdx));
+
+idx = wrongIdx(randi(length(wrongIdx)));
+
+img = readimage(test,idx);
+
+[predLabel,score] = classify(net,img);
+
+figure
+imshow(img)
+title(sprintf('예측 : %s    실제 : %s', ...
+    char(predLabel), char(test.Labels(idx))))
+
+disp(score)
